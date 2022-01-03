@@ -1,0 +1,13 @@
+name = "DeepCFR"
+uuid = "8c28a765-69da-4b11-9191-9a4a2c83148b"
+authors = ["WhiffleFish <tylertronics@gmail.com> and contributors"]
+version = "0.1.0"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[compat]
+julia = "1"
+
+[targets]
+test = ["Test"]

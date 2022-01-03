@@ -1,1 +1,1 @@
-# DeepCFR.jl
+# DeepCFR
