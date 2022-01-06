@@ -1,5 +1,11 @@
 module DeepCFR
 
-# Write your package code here.
+using CounterfactualRegret
+using Flux
 
+include("solver.jl")
+include("ESCFR.jl")
+include("train.jl")
+
+export DeepCFRSolver
 end
