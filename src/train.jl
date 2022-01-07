@@ -3,14 +3,19 @@ https://github.com/JuliaReinforcementLearning/ReinforcementLearning.jl/blob/mast
 =#
 function CounterfactualRegret.train!(sol::DeepCFRSolver, N::Int)
     initialize!(sol)
-    h0 = initialstate(sol.game)
-    for t in 1:N
-        for p in 1:2
-            traverse(sol, h0, p, t)
+    h0 = initialhist(sol.game)
+    t = 0
+    for _ in 1:N
+        for _ in 1:sol.batch_size
+            t += 1
+            for p in 1:2
+                traverse(sol, h0, p, t)
+            end
         end
-        train_value!(sol)
+        train_value!(sol, sol.batch_size, 1)
+        train_value!(sol, sol.batch_size, 2)
     end
-    train_strategy!(sol)
+    train_policy!(sol, sol.batch_size)
 end
 
 """
@@ -24,77 +29,107 @@ function initialize!(sol::DeepCFRSolver)
     # TODO: empty memory buffers
 end
 
-# ```julia
-#   for d in training_set # assuming d looks like (data, labels)
-#     # our super logic
-#     gs = gradient(params(m)) do #m is our model
-#       l = loss(d...)
-#     end
-#     update!(opt, params(m), gs)
-#   end
-# ```
-
-
 function train_value!(sol::DeepCFRSolver, batch_size::Int, p::Int)
     Mv = sol.Mv[p]
     V = sol.V[p]
     opt = sol.optimizer
 
-
-    #= TODO: does not have to be the case that memory is evenly divisible by batch size
-    But we simplify it to be such for a minimal working example
-    =#
     L = length(Mv.t)
-    n_batches = L ÷ batch_size
+    iszero(L) && return
+    full_batches, leftover = divrem(L, batch_size)
+    total_batches = full_batches
+    !iszero(leftover) && (total_batches += 1)
+
+    input_size = length(first(Mv.I))
+    output_size = length(first(Mv.r))
     perm = randperm(L)
-    perms = Flux.chunk(perm, n_batches)
+    perms = Flux.chunk(perm, total_batches)
 
-    I = Matrix{eltype(infotype(sol))}(undef, input_size, n_batches)
-    R = Matrix{Float64}(undef, input_size, n_batches)
+    I = Matrix{eltype(infotype(sol))}(undef, input_size, batch_size)
+    R = Matrix{Float64}(undef, output_size, batch_size)
 
-    for i in 1:n_batches
+    # handle full batches
+    for i in 1:full_batches
         fillmat!(I, Mv.I[perms[i]])
-        fillmat!(r, Mv.r[perms[i]])
+        fillmat!(R, Mv.r[perms[i]])
         p = params(V)
         gs = gradient(p) do
-            Flux.Losses.mse(V(I),r)
+            Flux.Losses.mse(V(I), R)
         end
-        update!(opt, p, gs)
+        Flux.update!(opt, p, gs)
     end
+
+    # whatever is leftover
+    if !iszero(leftover)
+        I = Matrix{eltype(infotype(sol))}(undef, input_size, leftover)
+        R = Matrix{Float64}(undef, output_size, leftover)
+
+        fillmat!(I, Mv.I[last(perms)])
+        fillmat!(R, Mv.r[last(perms)])
+        p = params(V)
+        gs = gradient(p) do
+            Flux.Losses.mse(V(I),R)
+        end
+        Flux.update!(opt, p, gs)
+    end
+    nothing
 end
+
 
 function train_policy!(sol::DeepCFRSolver, batch_size::Int)
     Mπ = sol.Mπ
     Π = sol.Π
     opt = sol.optimizer
 
-
-    #= TODO: does not have to be the case that memory is evenly divisible by batch size
-    But we simplify it to be such for a minimal working example
-    =#
     L = length(Mπ.t)
-    n_batches = L ÷ batch_size
+    iszero(L) && return
+    full_batches, leftover = divrem(L, batch_size)
+    total_batches = full_batches
+    !iszero(leftover) && (total_batches += 1)
+
+    input_size = length(first(Mπ.I))
+    output_size = length(first(Mπ.σ))
     perm = randperm(L)
-    perms = Flux.chunk(perm, n_batches)
+    perms = Flux.chunk(perm, total_batches)
 
-    I = Matrix{eltype(infotype(sol))}(undef, input_size, n_batches)
-    σ = Matrix{Float64}(undef, input_size, n_batches)
+    I = Matrix{eltype(infotype(sol))}(undef, input_size, batch_size)
+    σ = Matrix{Float64}(undef, output_size, batch_size)
 
-    for i in 1:n_batches
+    # TODO: DRY
+    # handle full batches
+    for i in 1:full_batches
         fillmat!(I, Mπ.I[perms[i]])
-        fillmat!(σ, Mπ.r[perms[i]])
+        fillmat!(σ, Mπ.σ[perms[i]])
+        p = params(Π)
+        gs = gradient(p) do
+            Flux.Losses.mse(Π(I), σ)
+        end
+        Flux.update!(opt, p, gs)
+    end
+
+    # whatever is leftover
+    if !iszero(leftover)
+        I = Matrix{eltype(infotype(sol))}(undef, input_size, leftover)
+        σ = Matrix{Float64}(undef, output_size, leftover)
+
+        fillmat!(I, Mπ.I[last(perms)])
+        fillmat!(σ, Mπ.σ[last(perms)])
         p = params(Π)
         gs = gradient(p) do
             Flux.Losses.mse(Π(I),σ)
         end
-        update!(opt, p, gs)
+        Flux.update!(opt, p, gs)
     end
+    nothing
 end
 
-function fillmat!(mat::Matrix{T}, vecvec::Vector{Vector{T}}) where T
+"""
+inplace `reduce(hcat, vecvec)`
+"""
+function fillmat!(mat::Matrix{T}, vecvec) where T
     inner_sz, outer_sz = size(mat)
-    @assert length(vecvec) == outer_sz
-    @assert length(first(vecvec)) == inner_sz
+    @assert length(vecvec)==outer_sz "$(length(vecvec)) ≠ $outer_sz"
+    @assert length(first(vecvec)) == inner_sz "$(length(first(vecvec))) ≠ $inner_sz"
     for i in eachindex(vecvec)
         mat[:,i] .= vecvec[i]
     end
