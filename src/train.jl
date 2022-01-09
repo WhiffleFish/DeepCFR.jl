@@ -12,10 +12,10 @@ function CounterfactualRegret.train!(sol::DeepCFRSolver, N::Int)
                 traverse(sol, h0, p, t)
             end
         end
-        train_value!(sol, sol.batch_size, 1)
-        train_value!(sol, sol.batch_size, 2)
+        train_value!(sol, 1)
+        train_value!(sol, 2)
     end
-    train_policy!(sol, sol.batch_size)
+    train_policy!(sol)
 end
 
 """
@@ -29,97 +29,52 @@ function initialize!(sol::DeepCFRSolver)
     # TODO: empty memory buffers
 end
 
-function train_value!(sol::DeepCFRSolver, batch_size::Int, p::Int)
-    Mv = sol.Mv[p]
-    V = sol.V[p]
-    opt = sol.optimizer
-
-    L = length(Mv.t)
-    iszero(L) && return
-    full_batches, leftover = divrem(L, batch_size)
-    total_batches = full_batches
-    !iszero(leftover) && (total_batches += 1)
-
-    input_size = length(first(Mv.I))
-    output_size = length(first(Mv.r))
-    perm = randperm(L)
-    perms = Flux.chunk(perm, total_batches)
-
-    I = Matrix{eltype(infotype(sol))}(undef, input_size, batch_size)
-    R = Matrix{Float64}(undef, output_size, batch_size)
-
-    # handle full batches
-    for i in 1:full_batches
-        fillmat!(I, Mv.I[perms[i]])
-        fillmat!(R, Mv.r[perms[i]])
-        p = params(V)
-        gs = gradient(p) do
-            Flux.Losses.mse(V(I), R)
-        end
-        Flux.update!(opt, p, gs)
-    end
-
-    # whatever is leftover
-    if !iszero(leftover)
-        I = Matrix{eltype(infotype(sol))}(undef, input_size, leftover)
-        R = Matrix{Float64}(undef, output_size, leftover)
-
-        fillmat!(I, Mv.I[last(perms)])
-        fillmat!(R, Mv.r[last(perms)])
-        p = params(V)
-        gs = gradient(p) do
-            Flux.Losses.mse(V(I),R)
-        end
-        Flux.update!(opt, p, gs)
-    end
-    nothing
+function train_value!(sol::DeepCFRSolver, p::Int)
+    train_net!(sol.V[p], sol.Mv[p].I, sol.Mv[p].r, sol.batch_size, sol.optimizer)
 end
 
+function train_policy!(sol::DeepCFRSolver)
+    train_net!(sol.Π, sol.Mπ.I, sol.Mπ.σ, sol.batch_size, sol.optimizer)
+end
 
-function train_policy!(sol::DeepCFRSolver, batch_size::Int)
-    Mπ = sol.Mπ
-    Π = sol.Π
-    opt = sol.optimizer
-
-    L = length(Mπ.t)
+function train_net!(net, x_data, y_data, batch_size, opt)
+    L = length(x_data)
     iszero(L) && return
     full_batches, leftover = divrem(L, batch_size)
     total_batches = full_batches
     !iszero(leftover) && (total_batches += 1)
 
-    input_size = length(first(Mπ.I))
-    output_size = length(first(Mπ.σ))
+    input_size = length(first(x_data))
+    output_size = length(first(y_data))
     perm = randperm(L)
     perms = Flux.chunk(perm, total_batches)
 
-    I = Matrix{eltype(infotype(sol))}(undef, input_size, batch_size)
-    σ = Matrix{Float64}(undef, output_size, batch_size)
+    X = Matrix{Float64}(undef, input_size, batch_size)
+    Y = Matrix{Float64}(undef, output_size, batch_size)
 
-    # TODO: DRY
-    # handle full batches
     for i in 1:full_batches
-        fillmat!(I, Mπ.I[perms[i]])
-        fillmat!(σ, Mπ.σ[perms[i]])
-        p = params(Π)
+        fillmat!(X::Matrix{Float64}, x_data[perms[i]])
+        fillmat!(Y::Matrix{Float64}, y_data[perms[i]])
+        p = params(net)
         gs = gradient(p) do
-            Flux.Losses.mse(Π(I), σ)
+            Flux.Losses.mse(net(X), Y)
         end
         Flux.update!(opt, p, gs)
     end
 
-    # whatever is leftover
     if !iszero(leftover)
-        I = Matrix{eltype(infotype(sol))}(undef, input_size, leftover)
-        σ = Matrix{Float64}(undef, output_size, leftover)
+        X = Matrix{Float64}(undef, input_size, leftover)
+        Y = Matrix{Float64}(undef, output_size, leftover)
 
-        fillmat!(I, Mπ.I[last(perms)])
-        fillmat!(σ, Mπ.σ[last(perms)])
-        p = params(Π)
+        fillmat!(X::Matrix{Float64}, x_data[last(perms)])
+        fillmat!(Y::Matrix{Float64}, y_data[last(perms)])
+        p = params(net)
         gs = gradient(p) do
-            Flux.Losses.mse(Π(I),σ)
+            Flux.Losses.mse(net(X),Y)
         end
         Flux.update!(opt, p, gs)
     end
+
     nothing
 end
 
