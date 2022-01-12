@@ -6,7 +6,7 @@ function CounterfactualRegret.train!(sol::DeepCFRSolver, N::Int)
     h0 = initialhist(sol.game)
     t = 0
     for _ in 1:N
-        for _ in 1:sol.batch_size
+        for _ in 1:sol.traversals
             t += 1
             for p in 1:2
                 traverse(sol, h0, p, t)
@@ -19,14 +19,20 @@ function CounterfactualRegret.train!(sol::DeepCFRSolver, N::Int)
 end
 
 """
+https://discourse.julialang.org/t/reset-model-parameters-flux-jl/35021/2
+"""
+function initialize!(nn::Union{Dense, Chain}) # These networks don't have a common supertype?
+    Flux.loadparams!(nn, map(p -> p .= randn.(), Flux.params(nn)))
+end
+
+"""
 reset advantage network and empty memory buffers
 """
 function initialize!(sol::DeepCFRSolver)
-    # https://discourse.julialang.org/t/reset-model-parameters-flux-jl/35021/2
-    Flux.loadparams!(sol.V[1], map(p -> p .= randn.(), Flux.params(sol.V[1])))
-    Flux.loadparams!(sol.V[2], map(p -> p .= randn.(), Flux.params(sol.V[2])))
     # TODO: Reinitialize with glorot somehow? Or some user-specified initializer?
     # TODO: empty memory buffers
+    initialize!(sol.V[1])
+    initialize!(sol.V[2])
 end
 
 function train_value!(sol::DeepCFRSolver, p::Int)
@@ -51,27 +57,26 @@ function train_net!(net, x_data, y_data, batch_size, opt)
 
     X = Matrix{Float64}(undef, input_size, batch_size)
     Y = Matrix{Float64}(undef, output_size, batch_size)
+    Loss = NetLoss(net, X, Y)
+    p = params(net)
 
     for i in 1:full_batches
         fillmat!(X::Matrix{Float64}, x_data[perms[i]])
         fillmat!(Y::Matrix{Float64}, y_data[perms[i]])
-        p = params(net)
-        gs = gradient(p) do
-            Flux.Losses.mse(net(X), Y)
-        end
+
+        gs = gradient(Loss, p)
+
         Flux.update!(opt, p, gs)
     end
 
     if !iszero(leftover)
         X = Matrix{Float64}(undef, input_size, leftover)
         Y = Matrix{Float64}(undef, output_size, leftover)
+        Loss = NetLoss(net, X, Y)
 
         fillmat!(X::Matrix{Float64}, x_data[last(perms)])
         fillmat!(Y::Matrix{Float64}, y_data[last(perms)])
-        p = params(net)
-        gs = gradient(p) do
-            Flux.Losses.mse(net(X),Y)
-        end
+        gs = gradient(Loss, p)
         Flux.update!(opt, p, gs)
     end
 
@@ -81,12 +86,20 @@ end
 """
 inplace `reduce(hcat, vecvec)`
 """
-function fillmat!(mat::Matrix{T}, vecvec) where T
+function fillmat!(mat::T, vecvec) where T
     inner_sz, outer_sz = size(mat)
     @assert length(vecvec)==outer_sz "$(length(vecvec)) ≠ $outer_sz"
     @assert length(first(vecvec)) == inner_sz "$(length(first(vecvec))) ≠ $inner_sz"
     for i in eachindex(vecvec)
         mat[:,i] .= vecvec[i]
     end
-    mat
+    mat::T
 end
+
+struct NetLoss{NN}
+    net::NN
+    X::Matrix{Float64}
+    Y::Matrix{Float64}
+end
+
+(n::NetLoss)() = Flux.Losses.mse(n.net(n.X), n.Y)
