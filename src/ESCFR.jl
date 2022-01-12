@@ -7,9 +7,9 @@ function traverse(sol::DeepCFRSolver, h, p, t)
     game = sol.game
 
     if isterminal(game, h)
-        return utility(game, p, h)
+        return CounterfactualRegret.utility(game, p, h)
 
-    elseif player(game, h) === 0
+    elseif player(game, h) == 0
         a = chance_action(game, h)
         h′ = next_hist(game,h,a)
         return traverse(game, h′, p, t)
@@ -23,14 +23,16 @@ function traverse(sol::DeepCFRSolver, h, p, t)
         σ = regret_match_strategy(sol, I, p)
         for (i,a) in enumerate(A)
             h′ = next_hist(game, h, a)
-            v = traverse(game, h′, p, t)
+            v = traverse(sol, h′, p, t)
             v_σ_Ia[i] = v
             v_σ += σ[i]*v
         end
 
-        # TODO: Ensure there isn't some positivity restriction on regret
+        # TODO: Ensure there isn't some positivity restriction on regret here
         r = v_σ_Ia .-= v_σ
-        push!(sol.Mv, I,t,r)
+        push!(sol.Mv[p], I,t,r)
+
+        return v_σ
 
     else
         I = infokey(game, h) # info KEY here, not infostate
@@ -39,38 +41,38 @@ function traverse(sol::DeepCFRSolver, h, p, t)
         push!(sol.Mπ, I,t,σ)
         a = A[weighted_sample(σ)]
         h′ = next_hist(game, h, a)
-        return traverse(game, h′, p, t)
+        return traverse(sol, h′, p, t)
     end
 end
 
 """
 Sample index of vector according to weights given by vector (sum of weights assumed to be 1.0)
 """
-function weighted_sample(rng::AbstractRNG, σ::AbstractVector{Float64})
+function weighted_sample(rng::Random.AbstractRNG, σ::AbstractVector)
     t = rand(rng)
     i = 1
     cw = σ[1]
     while cw < t && i < length(σ)
         i += 1
-        @inbounds cw += σ[i]
+        cw += σ[i]
     end
     return i
 end
 
-weighted_sample(σ::AbstractVector{Float64}) = weighted_sample(Random.GLOBAL_RNG, σ)
+weighted_sample(σ::AbstractVector) = weighted_sample(Random.GLOBAL_RNG, σ)
 
 function regret_match_strategy(sol::DeepCFRSolver, I, p)
     # TODO: ensure that mutating this array isn't mutating something else
     values = sol.V[p](I)
     s = 0.0f0
-    @inbounds for i in eachindex(values)
+    for i in eachindex(values)
         if values[i] > 0.0f0
             s += values[i]
         else
             values[i] = 0.f0
         end
     end
-    
+
     if s > 0.0f0
         return values ./= s
     else
