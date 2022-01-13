@@ -14,6 +14,7 @@ struct DeepCFRSolver{AN, SN, INFO, REGRET, STRAT, G<:Game, OPT<:Flux.Optimise.Ab
 
     buffer_size::Int
     batch_size::Int
+    traversals::Int
     optimizer::OPT
     game::G
 end
@@ -34,6 +35,7 @@ end
 function DeepCFRSolver(game::Game{H,K};
     buffer_size::Int = 40*10^3,
     batch_size::Int = 40,
+    traversals::Int = 40,
     optimizer = ADAM(0.01)
     ) where {H,K}
 
@@ -43,12 +45,18 @@ function DeepCFRSolver(game::Game{H,K};
 
     return DeepCFRSolver(
         (value_net, deepcopy(value_net)),
-        (AdvantageMemory{K}(), AdvantageMemory{K}()),
+        (AdvantageMemory{K}(buffer_size), AdvantageMemory{K}(buffer_size)),
         strategy_net,
-        StrategyMemory{K}(),
+        StrategyMemory{K}(buffer_size),
         buffer_size,
         batch_size,
+        traversals,
         optimizer,
         game
     )
+end
+
+function strategy(sol::DeepCFRSolver, I)
+    σ = sol.Π(I)
+    return σ ./= sum(σ)
 end
