@@ -12,10 +12,10 @@ function traverse(sol::DeepCFRSolver, h, p, t)
     elseif player(game, h) == 0
         a = chance_action(game, h)
         h′ = next_hist(game,h,a)
-        return traverse(game, h′, p, t)
+        return traverse(sol, h′, p, t)
 
     elseif player(game, h) == p
-        I = infokey(game, h) # info KEY here, not infostate
+        I = vectorized(game, infokey(game, h)) # info KEY here, not infostate
         A = actions(game, h)
         v_σ_Ia = Vector{Float64}(undef, length(A))
         v_σ = 0.0
@@ -35,7 +35,7 @@ function traverse(sol::DeepCFRSolver, h, p, t)
         return v_σ
 
     else
-        I = infokey(game, h) # info KEY here, not infostate
+        I = vectorized(game, infokey(game, h)) # info KEY here, not infostate
         A = actions(game, h)
         σ = regret_match_strategy(sol, I, other_player(p))
         push!(sol.Mπ, I,t,σ)
@@ -44,6 +44,16 @@ function traverse(sol::DeepCFRSolver, h, p, t)
         return traverse(sol, h′, p, t)
     end
 end
+
+"""
+Infokey type of game may not be in vectorized form.
+
+`vectorized(game::Game, I::infokeytype(game))` returns the original key type
+in vectorized form to be pushed through a neural network.
+"""
+function vectorized end
+
+vectorized(game::Game, I) = I
 
 """
 Sample index of vector according to weights given by vector (sum of weights assumed to be 1.0)
@@ -61,7 +71,7 @@ end
 
 weighted_sample(σ::AbstractVector) = weighted_sample(Random.GLOBAL_RNG, σ)
 
-function regret_match_strategy(sol::DeepCFRSolver, I, p)
+function regret_match_strategy(sol::DeepCFRSolver, I::AbstractVector, p)
     # TODO: ensure that mutating this array isn't mutating something else
     values = sol.V[p](I)
     s = 0.0f0

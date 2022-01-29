@@ -1,10 +1,11 @@
 #=
 https://github.com/JuliaReinforcementLearning/ReinforcementLearning.jl/blob/master/src/ReinforcementLearningZoo/src/algorithms/cfr/deep_cfr.jl
 =#
-function CounterfactualRegret.train!(sol::DeepCFRSolver, N::Int)
+function CounterfactualRegret.train!(sol::DeepCFRSolver, N::Int; show_progress::Bool = false)
     initialize!(sol)
     h0 = initialhist(sol.game)
     t = 0
+    prog = Progress(N; enabled=show_progress)
     for _ in 1:N
         for _ in 1:sol.traversals
             t += 1
@@ -14,6 +15,7 @@ function CounterfactualRegret.train!(sol::DeepCFRSolver, N::Int)
         end
         train_value!(sol, 1)
         train_value!(sol, 2)
+        next!(prog)
     end
     train_policy!(sol)
 end
@@ -31,16 +33,21 @@ reset advantage network and empty memory buffers
 function initialize!(sol::DeepCFRSolver)
     # TODO: Reinitialize with glorot somehow? Or some user-specified initializer?
     # TODO: empty memory buffers
-    initialize!(sol.V[1])
-    initialize!(sol.V[2])
+    initialize!.(sol.V)
+    initialize!(sol.Π)
 end
 
 function train_value!(sol::DeepCFRSolver, p::Int)
-    train_net!(sol.V[p], sol.Mv[p].I, sol.Mv[p].r, sol.batch_size, sol.optimizer)
+    initialize!.(sol.V)
+    for _ in 1:sol.value_epochs
+        train_net!(sol.V[p], sol.Mv[p].I, sol.Mv[p].r, sol.batch_size, sol.optimizer)
+    end
 end
 
 function train_policy!(sol::DeepCFRSolver)
-    train_net!(sol.Π, sol.Mπ.I, sol.Mπ.σ, sol.batch_size, sol.optimizer)
+    for _ in 1:sol.strategy_epochs
+        train_net!(sol.Π, sol.Mπ.I, sol.Mπ.σ, sol.batch_size, sol.optimizer)
+    end
 end
 
 function train_net!(net, x_data, y_data, batch_size, opt)
@@ -53,7 +60,7 @@ function train_net!(net, x_data, y_data, batch_size, opt)
     input_size = length(first(x_data))
     output_size = length(first(y_data))
     perm = randperm(L)
-    perms = Flux.chunk(perm, total_batches)
+    perms = collect(Iterators.partition(perm, batch_size))
 
     X = Matrix{Float64}(undef, input_size, batch_size)
     Y = Matrix{Float64}(undef, output_size, batch_size)
@@ -88,7 +95,7 @@ inplace `reduce(hcat, vecvec)`
 """
 function fillmat!(mat::T, vecvec) where T
     inner_sz, outer_sz = size(mat)
-    @assert length(vecvec)==outer_sz "$(length(vecvec)) ≠ $outer_sz"
+    @assert length(vecvec) == outer_sz "$(length(vecvec)) ≠ $outer_sz"
     @assert length(first(vecvec)) == inner_sz "$(length(first(vecvec))) ≠ $inner_sz"
     for i in eachindex(vecvec)
         mat[:,i] .= vecvec[i]

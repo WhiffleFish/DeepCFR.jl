@@ -41,6 +41,14 @@ struct AdvantageMemory{INFO<:AbstractVector, REGRET<:AbstractVector}
     capacity::Int
 end
 
+function Base.length(mem::AdvantageMemory)
+    return length(mem.t)
+end
+
+function Base.length(mem::StrategyMemory)
+    return length(mem.t)
+end
+
 function AdvantageMemory{INFO, REGRET}(sz::Int) where {INFO,REGRET}
     return AdvantageMemory(INFO[], Int[], REGRET[], sz)
 end

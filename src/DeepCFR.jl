@@ -2,6 +2,8 @@ module DeepCFR
 
 using CounterfactualRegret
 using Random
+using ProgressMeter
+using Base.Iterators
 using Flux
 
 include("memory.jl")
