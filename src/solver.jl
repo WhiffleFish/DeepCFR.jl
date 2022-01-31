@@ -1,5 +1,14 @@
 # TODO: Do we really need to parameterize REGRET, STRAT or should we just leave as Vector{Float64} ?
-struct DeepCFRSolver{AN, SN, INFO, REGRET, STRAT, G<:Game, OPT<:Flux.Optimise.AbstractOptimiser}
+struct DeepCFRSolver{
+        AN,
+        SN,
+        INFO,
+        REGRET,
+        STRAT,
+        G<:Game,
+        ADV_OPT<:Flux.Optimise.AbstractOptimiser,
+        STRAT_OPT<:Flux.Optimise.AbstractOptimiser
+    }
     "Advantage networks"
     V::NTuple{2,AN}
 
@@ -17,7 +26,8 @@ struct DeepCFRSolver{AN, SN, INFO, REGRET, STRAT, G<:Game, OPT<:Flux.Optimise.Ab
     buffer_size::Int
     batch_size::Int
     traversals::Int
-    optimizer::OPT
+    advantage_opt::ADV_OPT
+    strategy_opt::STRAT_OPT
     game::G
 end
 
@@ -38,17 +48,22 @@ function DeepCFRSolver(game::Game{H,K};
     value_epochs::Int = 1,
     strategy_epochs::Int = 1,
 
-    buffer_size::Int = 40*10^3,
-    batch_size::Int = 40,
-    traversals::Int = 40,
-    optimizer = ADAM(0.01)
+    buffer_size::Int = 100*10^3,
+    batch_size::Int = 1_000,
+    traversals::Int = 100,
+    advantage_optimizer = Flux.Optimiser(ClipValue(10.0), Descent()),
+    strategy_optimizer = ADAM()
     ) where {H,K}
 
     VK = first(Base.return_types(vectorized, (typeof(game),K)))
     @assert VK <: AbstractVector
     in_size, out_size = in_out_sizes(game)
-    value_net = Chain(Dense(in_size,10), Dense(10,out_size))
-    strategy_net = Chain(Dense(in_size,10), Dense(10,out_size), softmax)
+    value_net = Chain(Dense(in_size, 10, relu), Dense(10,out_size))
+    strategy_net = Chain(
+        Dense(in_size, 20, relu),
+        Dense(20, out_size, sigmoid),
+        softmax
+    )
 
     return DeepCFRSolver(
         (value_net, deepcopy(value_net)),
@@ -60,7 +75,8 @@ function DeepCFRSolver(game::Game{H,K};
         buffer_size,
         batch_size,
         traversals,
-        optimizer,
+        advantage_optimizer,
+        strategy_optimizer,
         game
     )
 end
@@ -79,14 +95,15 @@ function Base.show(io::IO, mime::MIME"text/plain", sol::DeepCFRSolver)
     sz = sol.buffer_size
     println(io, "\n\t Deep CFR Solver")
     println(io, join(fill('_', 20)))
-    println(io, "Advantage Net    | \t $(string(first(sol.V)))")
-    println(io, "Advantage Memory | \t $Lv / $sz")
-    println(io, "Strategy Net     | \t $(string(sol.Π))")
-    println(io, "Strategy Memory  | \t $Lπ / $sz")
-    println(io, "Batch Size       | \t $(sol.batch_size)")
-    println(io, "Traversals       | \t $(sol.traversals)")
-    println(io, "Optimizer        | \t $(typeof(sol.optimizer))")
-    println(io, "Game             | \t $(typeof(sol.game))")
+    println(io, "Advantage Net       | \t $(string(first(sol.V)))")
+    println(io, "Advantage Memory    | \t $Lv / $sz")
+    println(io, "Strategy Net        | \t $(string(sol.Π))")
+    println(io, "Strategy Memory     | \t $Lπ / $sz")
+    println(io, "Batch Size          | \t $(sol.batch_size)")
+    println(io, "Traversals          | \t $(sol.traversals)")
+    println(io, "Advantage Optimizer | \t $(typeof(sol.advantage_opt))")
+    println(io, "Strategy Optimizer  | \t $(typeof(sol.strategy_opt))")
+    println(io, "Game                | \t $(typeof(sol.game))")
 
     nothing
 end
