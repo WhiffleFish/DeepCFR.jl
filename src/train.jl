@@ -28,7 +28,7 @@ function initialize!(nn::Union{Dense, Chain}) # These networks don't have a comm
 end
 
 """
-reset advantage network and empty memory buffers
+reset advantage networks and empty memory buffers
 """
 function initialize!(sol::DeepCFRSolver)
     # TODO: Reinitialize with glorot somehow? Or some user-specified initializer?
@@ -39,14 +39,21 @@ end
 
 function train_value!(sol::DeepCFRSolver, p::Int)
     initialize!.(sol.V)
+    opt = deepcopy(sol.advantage_opt)
     for _ in 1:sol.value_epochs
-        train_net!(sol.V[p], sol.Mv[p].I, sol.Mv[p].r, sol.batch_size, sol.optimizer)
+        train_net!(sol.V[p], sol.Mv[p].I, sol.Mv[p].r, sol.batch_size, opt)
     end
 end
 
 function train_policy!(sol::DeepCFRSolver)
     for _ in 1:sol.strategy_epochs
-        train_net!(sol.Π, sol.Mπ.I, sol.Mπ.σ, sol.batch_size, sol.optimizer)
+        train_net!(sol.Π, sol.Mπ.I, sol.Mπ.σ, sol.batch_size, sol.strategy_opt)
+    end
+end
+
+function train_policy!(sol::DeepCFRSolver, epochs::Int)
+    for _ in 1:epochs
+        train_net!(sol.Π, sol.Mπ.I, sol.Mπ.σ, sol.batch_size, sol.strategy_opt)
     end
 end
 
