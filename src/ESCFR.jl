@@ -28,7 +28,6 @@ function traverse(sol::DeepCFRSolver, h, p, t)
             v_σ += σ[i]*v
         end
 
-        # TODO: Ensure there isn't some positivity restriction on regret here
         r = v_σ_Ia .-= v_σ
         push!(sol.Mv[p], I,t,r)
 
@@ -72,18 +71,17 @@ end
 weighted_sample(σ::AbstractVector) = weighted_sample(Random.GLOBAL_RNG, σ)
 
 function regret_match_strategy(sol::DeepCFRSolver, I::AbstractVector, p)
-    # TODO: ensure that mutating this array isn't mutating something else
     values = sol.V[p](I)
-    s = 0.0f0
+    s = 0.0
     for i in eachindex(values)
-        if values[i] > 0.0f0
+        if values[i] > 0.0
             s += values[i]
         else
-            values[i] = 0.f0
+            values[i] = 0.0
         end
     end
 
-    if s > 0.0f0
+    if s > 0.0
         return values ./= s
     else
         return fill!(values, inv(length(values)))
