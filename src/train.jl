@@ -80,7 +80,7 @@ function train_net!(net, x_data, y_data, batch_size, opt)
 
         gs = gradient(Loss, p)
 
-        Flux.update!(opt, p, gs)
+        Flux.update!(opt, p::Flux.Params, gs)
     end
 
     if !iszero(leftover)
@@ -91,7 +91,7 @@ function train_net!(net, x_data, y_data, batch_size, opt)
         fillmat!(X::Matrix{Float64}, x_data[last(perms)])
         fillmat!(Y::Matrix{Float64}, y_data[last(perms)])
         gs = gradient(Loss, p)
-        Flux.update!(opt, p, gs)
+        Flux.update!(opt, p::Flux.Params, gs)
     end
 
     nothing
@@ -105,7 +105,10 @@ function fillmat!(mat::T, vecvec) where T
     @assert length(vecvec) == outer_sz "$(length(vecvec)) ≠ $outer_sz"
     @assert length(first(vecvec)) == inner_sz "$(length(first(vecvec))) ≠ $inner_sz"
     for i in eachindex(vecvec)
-        mat[:,i] .= vecvec[i]
+        dest = view(mat,:,i)
+        src = vecvec[i]
+        src′ = Base.unalias(dest, src)
+        Base.copyto_unaliased!(IndexStyle(dest), dest, IndexStyle(src′), src′)
     end
     mat::T
 end
@@ -116,4 +119,4 @@ struct NetLoss{NN}
     Y::Matrix{Float64}
 end
 
-(n::NetLoss)() = Flux.Losses.mse(n.net(n.X), n.Y)
+(n::NetLoss)() = Flux.mse(n.net(n.X)::Matrix{Float64}, n.Y::Matrix{Float64})::Float64

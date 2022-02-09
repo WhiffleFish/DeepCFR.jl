@@ -1,8 +1,9 @@
-struct StrategyMemory{INFO<:AbstractVector, STRAT<:AbstractVector}
+mutable struct StrategyMemory{INFO<:AbstractVector, STRAT<:AbstractVector}
     I::Vector{INFO}
     t::Vector{Int}
     σ::Vector{STRAT}
     capacity::Int
+    i::Int
 end
 
 function StrategyMemory{INFO, STRAT}(sz::Int) where {INFO,STRAT}
@@ -10,7 +11,8 @@ function StrategyMemory{INFO, STRAT}(sz::Int) where {INFO,STRAT}
         sizehint!(INFO[], sz),
         sizehint!(Int[], sz),
         sizehint!(STRAT[], sz),
-        sz
+        sz,
+        0
     )
 end
 
@@ -19,31 +21,35 @@ function StrategyMemory{INFO}(sz::Int) where {INFO}
 end
 
 function Base.push!(Mπ::StrategyMemory, I, t, σ)
-    if length(Mπ.t) < Mπ.capacity
+    i = (Mπ.i += 1)
+    k = Mπ.capacity
+    if i ≤ k
         push!(Mπ.I,I)
         push!(Mπ.t,t)
         push!(Mπ.σ,σ)
     else
-        popfirst!(Mπ.I)
-        push!(Mπ.I,I)
-        popfirst!(Mπ.t)
-        push!(Mπ.t,t)
-        popfirst!(Mπ.σ)
-        push!(Mπ.σ,σ)
+        j = rand(1:i)
+        if j ≤ k
+            Mπ.I[j] = I
+            Mπ.t[j] = t
+            Mπ.σ[j] = σ
+        end
     end
 end
 
 function Base.empty!(Mπ::StrategyMemory)
+    Mπ.i = 0
     empty!(Mπ.I)
     empty!(Mπ.t)
     empty!(Mπ.σ)
 end
 
-struct AdvantageMemory{INFO<:AbstractVector, REGRET<:AbstractVector}
+mutable struct AdvantageMemory{INFO<:AbstractVector, REGRET<:AbstractVector}
     I::Vector{INFO}
     t::Vector{Int}
     r::Vector{REGRET}
     capacity::Int
+    i::Int
 end
 
 function Base.length(mem::AdvantageMemory)
@@ -59,7 +65,8 @@ function AdvantageMemory{INFO, REGRET}(sz::Int) where {INFO,REGRET}
         sizehint!(INFO[], sz),
         sizehint!(Int[], sz),
         sizehint!(REGRET[], sz),
-        sz
+        sz,
+        0
     )
 end
 
@@ -68,21 +75,24 @@ function AdvantageMemory{INFO}(sz::Int) where {INFO}
 end
 
 function Base.push!(Mv::AdvantageMemory, I, t, r)
-    if length(Mv.t) < Mv.capacity
+    i = (Mv.i += 1)
+    k = Mv.capacity
+    if i ≤ k
         push!(Mv.I,I)
         push!(Mv.t,t)
         push!(Mv.r,r)
     else
-        popfirst!(Mv.I)
-        push!(Mv.I,I)
-        popfirst!(Mv.t)
-        push!(Mv.t,t)
-        popfirst!(Mv.r)
-        push!(Mv.r,r)
+        j = rand(1:i)
+        if j ≤ k
+            Mv.I[j] = I
+            Mv.t[j] = t
+            Mv.r[j] = r
+        end
     end
 end
 
 function Base.empty!(Mv::AdvantageMemory)
+    Mv.i = 0
     empty!(Mv.I)
     empty!(Mv.t)
     empty!(Mv.r)
