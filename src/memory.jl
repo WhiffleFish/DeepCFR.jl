@@ -6,11 +6,16 @@ struct StrategyMemory{INFO<:AbstractVector, STRAT<:AbstractVector}
 end
 
 function StrategyMemory{INFO, STRAT}(sz::Int) where {INFO,STRAT}
-    return StrategyMemory(INFO[], Int[], STRAT[], sz)
+    return StrategyMemory(
+        sizehint!(INFO[], sz),
+        sizehint!(Int[], sz),
+        sizehint!(STRAT[], sz),
+        sz
+    )
 end
 
 function StrategyMemory{INFO}(sz::Int) where {INFO}
-    return StrategyMemory(INFO[], Int[], Vector{Float64}[], sz)
+    return StrategyMemory{INFO, Vector{Float64}}(sz)
 end
 
 function Base.push!(Mπ::StrategyMemory, I, t, σ)
@@ -50,11 +55,16 @@ function Base.length(mem::StrategyMemory)
 end
 
 function AdvantageMemory{INFO, REGRET}(sz::Int) where {INFO,REGRET}
-    return AdvantageMemory(INFO[], Int[], REGRET[], sz)
+    return AdvantageMemory(
+        sizehint!(INFO[], sz),
+        sizehint!(Int[], sz),
+        sizehint!(REGRET[], sz),
+        sz
+    )
 end
 
 function AdvantageMemory{INFO}(sz::Int) where {INFO}
-    return AdvantageMemory(INFO[], Int[], Vector{Float64}[], sz)
+    return AdvantageMemory{INFO, Vector{Float64}}(sz)
 end
 
 function Base.push!(Mv::AdvantageMemory, I, t, r)
