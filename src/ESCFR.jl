@@ -7,7 +7,7 @@ function traverse(sol::DeepCFRSolver, h, p, t)
     game = sol.game
 
     if isterminal(game, h)
-        return CounterfactualRegret.utility(game, p, h)
+        return Float32(CounterfactualRegret.utility(game, p, h))
 
     elseif player(game, h) == 0
         a = chance_action(game, h)
@@ -17,8 +17,8 @@ function traverse(sol::DeepCFRSolver, h, p, t)
     elseif player(game, h) == p
         I = vectorized(game, infokey(game, h)) # info KEY here, not infostate
         A = actions(game, h)
-        v_σ_Ia = Vector{Float64}(undef, length(A))
-        v_σ = 0.0
+        v_σ_Ia = Vector{Float32}(undef, length(A))
+        v_σ = 0.0f0
 
         σ = regret_match_strategy(sol, I, p)
         for (i,a) in enumerate(A)
@@ -70,8 +70,14 @@ end
 
 weighted_sample(σ::AbstractVector) = weighted_sample(Random.GLOBAL_RNG, σ)
 
-function regret_match_strategy(sol::DeepCFRSolver, I::AbstractVector, p)
-    values = sol.V[p](I)
+function regret_match_strategy(sol::DeepCFRSolver{GPU}, I::AbstractVector, p) where GPU
+    values = nothing
+    if GPU
+        I = I |> gpu
+        values = sol.V[p](I) |> cpu
+    else
+        values = sol.V[p](I)
+    end
     s = 0.0
     for i in eachindex(values)
         if values[i] > 0.0

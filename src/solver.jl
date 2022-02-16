@@ -1,5 +1,6 @@
 # TODO: Do we really need to parameterize REGRET, STRAT or should we just leave as Vector{Float64} ?
 struct DeepCFRSolver{
+        GPU,
         AN,
         SN,
         INFO,
@@ -9,6 +10,8 @@ struct DeepCFRSolver{
         ADV_OPT<:Flux.Optimise.AbstractOptimiser,
         STRAT_OPT<:Flux.Optimise.AbstractOptimiser
     }
+    gpu::Val{GPU}
+
     "Advantage networks"
     V::NTuple{2,AN}
 
@@ -31,9 +34,10 @@ struct DeepCFRSolver{
     game::G
 end
 
-infotype(::DeepCFRSolver{A,S,I}) where {A,S,I} = I
-regrettype(::DeepCFRSolver{A,S,I,R}) where {A,S,I,R} = R
-strattype(::DeepCFRSolver{A,S,I,R,ST}) where {A,S,I,R,ST} = ST
+on_gpu(::DeepCFRSolver{GPU}) where GPU = GPU
+infotype(::DeepCFRSolver{A,S,I}) where {GPU,A,S,I} = I
+regrettype(::DeepCFRSolver{A,S,I,R}) where {GPU,A,S,I,R} = R
+strattype(::DeepCFRSolver{A,S,I,R,ST}) where {GPU, A,S,I,R,ST} = ST
 
 function in_out_sizes(game::Game)
     h0 = initialhist(game)
@@ -52,11 +56,17 @@ function DeepCFRSolver(game::Game{H,K};
     batch_size::Int = 1_000,
     traversals::Int = 100,
     advantage_optimizer = Flux.Optimiser(ClipValue(10.0), Descent()),
-    strategy_optimizer = ADAM()
+    strategy_optimizer = ADAM(),
+    on_gpu::Bool = false
     ) where {H,K}
 
     VK = first(Base.return_types(vectorized, (typeof(game),K)))
     @assert VK <: AbstractVector
+
+    if promote_type(eltype(VK), Float32) !== Float32
+        @warn "Float32 eltype preferred for vectorized information state key"
+    end
+
     in_size, out_size = in_out_sizes(game)
     value_net = Chain(Dense(in_size, 10, relu), Dense(10,out_size))
     strategy_net = Chain(
@@ -65,7 +75,13 @@ function DeepCFRSolver(game::Game{H,K};
         softmax
     )
 
+    if on_gpu
+        value_net = value_net |> gpu
+        strategy_net = strategy_net |> gpu
+    end
+
     return DeepCFRSolver(
+        Val(on_gpu),
         (value_net, deepcopy(value_net)),
         (AdvantageMemory{VK}(buffer_size), AdvantageMemory{VK}(buffer_size)),
         strategy_net,
@@ -81,10 +97,7 @@ function DeepCFRSolver(game::Game{H,K};
     )
 end
 
-function strategy(sol::DeepCFRSolver, I::AbstractVector)
-    σ = sol.Π(I)
-    return σ ./= sum(σ)
-end
+strategy(sol::DeepCFRSolver, I::AbstractVector) = sol.Π(I)
 
 (sol::DeepCFRSolver)(I::AbstractVector) = strategy(sol, I)
 
@@ -95,6 +108,7 @@ function Base.show(io::IO, mime::MIME"text/plain", sol::DeepCFRSolver)
     sz = sol.buffer_size
     println(io, "\n\t Deep CFR Solver")
     println(io, join(fill('_', 20)))
+    println(io, "GPU                 | \t $(on_gpu(sol))")
     println(io, "Advantage Net       | \t $(string(first(sol.V)))")
     println(io, "Advantage Memory    | \t $Lv / $sz")
     println(io, "Strategy Net        | \t $(string(sol.Π))")

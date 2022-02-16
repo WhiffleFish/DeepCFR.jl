@@ -17,7 +17,7 @@ function StrategyMemory{INFO, STRAT}(sz::Int) where {INFO,STRAT}
 end
 
 function StrategyMemory{INFO}(sz::Int) where {INFO}
-    return StrategyMemory{INFO, Vector{Float64}}(sz)
+    return StrategyMemory{INFO, Vector{Float32}}(sz)
 end
 
 function Base.push!(Mπ::StrategyMemory, I, t, σ)
@@ -71,7 +71,7 @@ function AdvantageMemory{INFO, REGRET}(sz::Int) where {INFO,REGRET}
 end
 
 function AdvantageMemory{INFO}(sz::Int) where {INFO}
-    return AdvantageMemory{INFO, Vector{Float64}}(sz)
+    return AdvantageMemory{INFO, Vector{Float32}}(sz)
 end
 
 function Base.push!(Mv::AdvantageMemory, I, t, r)
