@@ -57,7 +57,8 @@ function train_policy!(sol::DeepCFRSolver, epochs::Int)
     end
 end
 
-function train_net!(::Val{true}, net, x_data, y_data, batch_size, opt)
+function train_net!(::Val{true}, dest_net, x_data, y_data, batch_size, opt)
+    src_net = dest_net |> gpu
     L = length(x_data)
     iszero(L) && return
     full_batches, leftover = divrem(L, batch_size)
@@ -68,7 +69,7 @@ function train_net!(::Val{true}, net, x_data, y_data, batch_size, opt)
     output_size = length(first(y_data))
     perm = randperm(L)
     perms = collect(Iterators.partition(perm, batch_size))
-    p = params(net)
+    p = params(src_net)
 
     for i in 1:full_batches
         X = Matrix{Float32}(undef, input_size, batch_size)
@@ -77,7 +78,7 @@ function train_net!(::Val{true}, net, x_data, y_data, batch_size, opt)
         fillmat!(Y, y_data[perms[i]])
         X = X |> gpu
         Y = Y |> gpu
-        Loss = NetLoss(net, X, Y)
+        Loss = NetLoss(src_net, X, Y)
 
         gs = gradient(Loss, p)
 
@@ -92,11 +93,12 @@ function train_net!(::Val{true}, net, x_data, y_data, batch_size, opt)
         X = X |> gpu
         Y = Y |> gpu
 
-        Loss = NetLoss(net, X, Y)
+        Loss = NetLoss(src_net, X, Y)
         gs = gradient(Loss, p)
         Flux.update!(opt, p::Flux.Params, gs)
     end
 
+    Flux.loadparams!(dest_net, p)
     nothing
 end
 

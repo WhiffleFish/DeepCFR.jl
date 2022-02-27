@@ -75,11 +75,6 @@ function DeepCFRSolver(game::Game{H,K};
         softmax
     )
 
-    if on_gpu
-        value_net = value_net |> gpu
-        strategy_net = strategy_net |> gpu
-    end
-
     return DeepCFRSolver(
         Val(on_gpu),
         (value_net, deepcopy(value_net)),

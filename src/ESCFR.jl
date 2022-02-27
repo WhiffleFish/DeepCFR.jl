@@ -71,13 +71,7 @@ end
 weighted_sample(σ::AbstractVector) = weighted_sample(Random.GLOBAL_RNG, σ)
 
 function regret_match_strategy(sol::DeepCFRSolver{GPU}, I::AbstractVector, p) where GPU
-    values = nothing
-    if GPU
-        I = I |> gpu
-        values = sol.V[p](I) |> cpu
-    else
-        values = sol.V[p](I)
-    end
+    values = sol.V[p](I)
     s = 0.0
     for i in eachindex(values)
         if values[i] > 0.0
