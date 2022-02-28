@@ -1,7 +1,8 @@
 #=
 https://github.com/JuliaReinforcementLearning/ReinforcementLearning.jl/blob/master/src/ReinforcementLearningZoo/src/algorithms/cfr/deep_cfr.jl
 =#
-function CounterfactualRegret.train!(sol::DeepCFRSolver, N::Int; show_progress::Bool = false)
+function CounterfactualRegret.train!(sol::DeepCFRSolver, N::Int; show_progress::Bool = false, cb = () -> ())
+    cb = Flux.Optimise.runall(cb)
     initialize!(sol)
     h0 = initialhist(sol.game)
     t = 0
@@ -15,6 +16,7 @@ function CounterfactualRegret.train!(sol::DeepCFRSolver, N::Int; show_progress::
         end
         train_value!(sol, 1)
         train_value!(sol, 2)
+        cb()
         next!(prog)
     end
     train_policy!(sol)
