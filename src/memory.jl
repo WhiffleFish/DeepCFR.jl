@@ -1,6 +1,6 @@
 mutable struct StrategyMemory{INFO<:AbstractVector, STRAT<:AbstractVector}
     I::Vector{INFO}
-    t::Vector{Int}
+    t::Vector{Float32}
     σ::Vector{STRAT}
     capacity::Int
     i::Int
@@ -9,7 +9,7 @@ end
 function StrategyMemory{INFO, STRAT}(sz::Int) where {INFO,STRAT}
     return StrategyMemory(
         sizehint!(INFO[], sz),
-        sizehint!(Int[], sz),
+        sizehint!(Float32[], sz),
         sizehint!(STRAT[], sz),
         sz,
         0
@@ -46,7 +46,7 @@ end
 
 mutable struct AdvantageMemory{INFO<:AbstractVector, REGRET<:AbstractVector}
     I::Vector{INFO}
-    t::Vector{Int}
+    t::Vector{Float32}
     r::Vector{REGRET}
     capacity::Int
     i::Int
@@ -63,7 +63,7 @@ end
 function AdvantageMemory{INFO, REGRET}(sz::Int) where {INFO,REGRET}
     return AdvantageMemory(
         sizehint!(INFO[], sz),
-        sizehint!(Int[], sz),
+        sizehint!(Float32[], sz),
         sizehint!(REGRET[], sz),
         sz,
         0

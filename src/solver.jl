@@ -1,5 +1,4 @@
-# TODO: Do we really need to parameterize REGRET, STRAT or should we just leave as Vector{Float64} ?
-struct DeepCFRSolver{
+mutable struct DeepCFRSolver{
         GPU,
         AN,
         SN,
@@ -32,6 +31,7 @@ struct DeepCFRSolver{
     advantage_opt::ADV_OPT
     strategy_opt::STRAT_OPT
     game::G
+    T::Float32
 end
 
 on_gpu(::DeepCFRSolver{GPU}) where GPU = GPU
@@ -88,7 +88,8 @@ function DeepCFRSolver(game::Game{H,K};
         traversals,
         advantage_optimizer,
         strategy_optimizer,
-        game
+        game,
+        1.0f0
     )
 end
 
