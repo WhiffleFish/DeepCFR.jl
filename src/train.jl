@@ -54,7 +54,7 @@ function train_value!(sol::DeepCFRSolver, p::Int)
     end
 end
 
-function train_policy!(sol::DeepCFRSolver, epochs::Int=sol.strategy_epochs)
+function train_policy!(sol::DeepCFRSolver, epochs::Int=sol.strategy_epochs, opt=sol.strategy_opt)
     for _ in 1:epochs
         train_net!(
             sol.gpu,
@@ -63,7 +63,7 @@ function train_policy!(sol::DeepCFRSolver, epochs::Int=sol.strategy_epochs)
             sol.Mπ.σ,
             sol.Mπ.t,
             sol.batch_size,
-            sol.strategy_opt
+            opt
         )
     end
 end

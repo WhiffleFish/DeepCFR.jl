@@ -48,36 +48,69 @@ function in_out_sizes(game::Game)
     return in_size, out_size
 end
 
+"""
+`game::CounterfactualRegret.Game`
+
+`value_epochs::Int` - Number of epochs for which value/advantage/regret networks are trained
+
+`strategy_epochs::Int` - Number of epochs for which strategy networks are trained
+
+`buffer_size::Int` - Capacity of memory buffers (both strategy and value)
+
+`batch_size::Int` - Batch size for each gradient update step (both strategy and value)
+
+`traversals::Int` - Number of MCCFR tree traversals to make for regret data collection between training steps
+
+`value_optimizer::Flux.Optimise.AbstractOptimiser` - value network optimizer
+
+`strategy_optimizer::Flux.Optimise.AbstractOptimiser` - strategy network optimizer
+
+`values` - Tuple of Flux.jl value networks (one network for each player)
+
+`strategy` - Single Flux.jl strategy network
+
+`on_gpu::Bool` - Option to push network training to GPU
+"""
 function DeepCFRSolver(game::Game{H,K};
     value_epochs::Int = 1,
     strategy_epochs::Int = 1,
-
     buffer_size::Int = 100*10^3,
     batch_size::Int = 1_000,
     traversals::Int = 100,
-    advantage_optimizer = Flux.Optimiser(ClipValue(10.0), Descent()),
+    value_optimizer = Flux.Optimiser(ClipValue(10.0), Descent()),
     strategy_optimizer = ADAM(),
+    strategy = nothing,
+    values::Union{Nothing, Tuple} = nothing,
     on_gpu::Bool = false
     ) where {H,K}
 
     VK = first(Base.return_types(vectorized, (typeof(game),K)))
-    @assert VK <: AbstractVector
+    @assert VK <: AbstractVector "`vectorized(::Game{H,K}, ::K)` should return vector"
 
     if promote_type(eltype(VK), Float32) !== Float32
         @warn "Float32 eltype preferred for vectorized information state key"
     end
 
-    in_size, out_size = in_out_sizes(game)
-    value_net = Chain(Dense(in_size, 10, relu), Dense(10,out_size))
-    strategy_net = Chain(
-        Dense(in_size, 20, relu),
-        Dense(20, out_size, sigmoid),
-        softmax
-    )
+    value_nets = if isnothing(values)
+        in_size, out_size = in_out_sizes(game)
+        value_net = Chain(Dense(in_size, 10, relu), Dense(10,out_size))
+        (value_net, deepcopy(value_net))
+    else
+        values
+    end
+
+    strategy_net = if isnothing(strategy)
+        Chain(
+            Dense(in_size, 20, relu),
+            Dense(20, out_size, sigmoid),
+            softmax)
+    else
+        strategy
+    end
 
     return DeepCFRSolver(
         Val(on_gpu),
-        (value_net, deepcopy(value_net)),
+        value_nets,
         (AdvantageMemory{VK}(buffer_size), AdvantageMemory{VK}(buffer_size)),
         strategy_net,
         StrategyMemory{VK}(buffer_size),
@@ -86,7 +119,7 @@ function DeepCFRSolver(game::Game{H,K};
         buffer_size,
         batch_size,
         traversals,
-        advantage_optimizer,
+        value_optimizer,
         strategy_optimizer,
         game,
         1.0f0

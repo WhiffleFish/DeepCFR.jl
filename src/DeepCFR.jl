@@ -11,6 +11,7 @@ include("memory.jl")
 include("solver.jl")
 include("ESCFR.jl")
 include("train.jl")
+include("check.jl")
 include("callback.jl")
 
 export DeepCFRSolver

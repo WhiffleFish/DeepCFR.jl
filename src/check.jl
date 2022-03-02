@@ -1,7 +1,9 @@
 function checksolver(sol::DeepCFRSolver)
+    game = sol.game
     h0 = initialhist(game)
     k = vectorized(game, infokey(game, h0))
 
+    K = infokeytype(game)
     VK = first(Base.return_types(vectorized, (typeof(game),K)))
     @assert VK <: AbstractVector "vectorized game keys must be vectors"
 
@@ -10,15 +12,36 @@ function checksolver(sol::DeepCFRSolver)
     out_size = length(A)
 
     for (i,net) in enumerate(sol.V)
+        try
+            output = net(k)
+        catch e
+            if e isa DimensionMismatch
+                printstyled("Value network $i input layer size should be $(length(k))\n"; color=:red, bold=true)
+                rethrow(e)
+            else
+                rethrow(e)
+            end
+        end
         output = net(k)
         @assert(
-            length(output)==out_size,
+            length(output) == out_size,
             "Value network $i output dim : $(length(output)) \n
             Required output dim: $out_size"
         )
     end
 
-    output = Π(k)
+    # TODO: is there some `Flux.nfan` for chain?
+    try
+        output = sol.Π(k)
+    catch e
+        if e isa DimensionMismatch
+            printstyled("Strategy input layer size should be $(length(k))\n"; color=:red, bold=true)
+            rethrow(e)
+        else
+            rethrow(e)
+        end
+    end
+    output = sol.Π(k)
     @assert(
         length(output) == out_size,
         "Strategy network output dim : $(length(output)) \n
@@ -29,5 +52,5 @@ function checksolver(sol::DeepCFRSolver)
         sum(output) ≈ 1.0,
         "Strategy network output should be normalized to 1.0"
     )
-    nothing
+    printstyled("Tests Pass\n"; color=:green, bold=:true)
 end
