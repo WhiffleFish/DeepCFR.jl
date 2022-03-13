@@ -1,8 +1,3 @@
-"""
-Not confident in this MCCFR traversal implementation demonstrated in https://arxiv.org/pdf/1811.00164.pdf
-
-Utility is not being weighted by path probability
-"""
 function traverse(sol::DeepCFRSolver, h, p, t)
     game = sol.game
 
@@ -70,20 +65,29 @@ end
 
 weighted_sample(σ::AbstractVector) = weighted_sample(Random.GLOBAL_RNG, σ)
 
-function regret_match_strategy(sol::DeepCFRSolver{GPU}, I::AbstractVector, p) where GPU
+function regret_match_strategy(sol::DeepCFRSolver, I::AbstractVector, p)
     values = sol.V[p](I)
-    s = 0.0
+    s = 0.0f0
+
+    max_neg_idx = 0
+    max_neg = -Inf
     for i in eachindex(values)
-        if values[i] > 0.0
+        if values[i] > 0.0f0
             s += values[i]
         else
-            values[i] = 0.0
+            v = values[i]
+            if v > max_neg
+                max_neg_idx = i
+                max_neg = v
+            end
+            values[i] = 0.0f0
         end
     end
 
-    if s > 0.0
+    if s > 0.0f0
         return values ./= s
     else
-        return fill!(values, inv(length(values)))
+        values[max_neg_idx] = 1.0f0
+        return values
     end
 end

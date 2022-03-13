@@ -9,10 +9,8 @@ DeepCFR.vectorized(::CFR.IIEMatrixGame, I) = SA[I]
 
 function DeepCFR.vectorized(game::CFR.Kuhn, I)
     p, pc, hist = I
-    L = length(hist)
-    h = Tuple(hist)
-    leftover = ntuple(_ -> -1, 2 - L)
-    SA[p, pc, h..., leftover...]::SVector{4,Int}
+    h = convert(SVector{3,Float32}, hist)
+    SA[Float32(p), Float32(pc), h...]
 end
 
 @testset "Default Networks" begin
