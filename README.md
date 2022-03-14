@@ -1,4 +1,5 @@
 # DeepCFR.jl
+[![codecov](https://codecov.io/gh/WhiffleFish/DeepCFR.jl/branch/main/graph/badge.svg?token=NM2KU62FG2)](https://codecov.io/gh/WhiffleFish/DeepCFR.jl)
 
 [Deep Counterfactual Regret Minimization](https://arxiv.org/abs/1811.00164) (Brown et al.)
 
