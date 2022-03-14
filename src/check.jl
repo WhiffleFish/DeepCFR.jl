@@ -16,8 +16,7 @@ function checksolver(sol::DeepCFRSolver)
             output = net(k)
         catch e
             if e isa DimensionMismatch
-                printstyled("Value network $i input layer size should be $(length(k))\n"; color=:red, bold=true)
-                rethrow(e)
+                throw(DimensionMismatch("Value network $i input layer size should be $(length(k))"))
             else
                 rethrow(e)
             end
@@ -35,8 +34,7 @@ function checksolver(sol::DeepCFRSolver)
         output = sol.Π(k)
     catch e
         if e isa DimensionMismatch
-            printstyled("Strategy input layer size should be $(length(k))\n"; color=:red, bold=true)
-            rethrow(e)
+            throw(DimensionMismatch("Strategy input layer size should be $(length(k))"))
         else
             rethrow(e)
         end
@@ -52,5 +50,6 @@ function checksolver(sol::DeepCFRSolver)
         sum(output) ≈ 1.0,
         "Strategy network output should be normalized to 1.0"
     )
-    printstyled("Tests Pass\n"; color=:green, bold=:true)
+
+    return "Tests Pass" # better way to do this?
 end

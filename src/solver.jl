@@ -5,9 +5,9 @@ mutable struct DeepCFRSolver{
         INFO,
         REGRET,
         STRAT,
-        G<:Game,
-        ADV_OPT<:Flux.Optimise.AbstractOptimiser,
-        STRAT_OPT<:Flux.Optimise.AbstractOptimiser
+        G <: Game,
+        ADV_OPT <: Flux.Optimise.AbstractOptimiser,
+        STRAT_OPT <: Flux.Optimise.AbstractOptimiser
     }
     gpu::Val{GPU}
 
@@ -35,9 +35,9 @@ mutable struct DeepCFRSolver{
 end
 
 on_gpu(::DeepCFRSolver{GPU}) where GPU = GPU
-infotype(::DeepCFRSolver{A,S,I}) where {GPU,A,S,I} = I
-regrettype(::DeepCFRSolver{A,S,I,R}) where {GPU,A,S,I,R} = R
-strattype(::DeepCFRSolver{A,S,I,R,ST}) where {GPU, A,S,I,R,ST} = ST
+infotype(::DeepCFRSolver{GPU,A,S,I}) where {GPU,A,S,I} = I
+regrettype(::DeepCFRSolver{GPU,A,S,I,R}) where {GPU,A,S,I,R} = R
+strattype(::DeepCFRSolver{GPU,A,S,I,R,ST}) where {GPU, A,S,I,R,ST} = ST
 
 function in_out_sizes(game::Game)
     h0 = initialhist(game)

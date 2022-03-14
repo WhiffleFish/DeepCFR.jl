@@ -4,7 +4,7 @@ mutable struct Throttle{F}
     state::Int
 end
 
-function throttle(f::Function, n::Int)
+function Throttle(f::Function, n::Int)
     return Throttle(f, n, 0)
 end
 
