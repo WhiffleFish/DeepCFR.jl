@@ -23,8 +23,8 @@ mutable struct DeepCFRSolver{
     "Strategy Memory"
     Mπ::StrategyMemory{INFO, STRAT}
 
-    value_epochs::Int
-    strategy_epochs::Int
+    value_batches::Int
+    strategy_batches::Int
     buffer_size::Int
     batch_size::Int
     traversals::Int
@@ -51,15 +51,15 @@ end
 """
 `game::CounterfactualRegret.Game`
 
-`value_epochs::Int` - Number of epochs for which value/advantage/regret networks are trained
+`value_batches::Int` - Number of epochs for which value/advantage/regret networks are trained
 
-`strategy_epochs::Int` - Number of epochs for which strategy networks are trained
+`strategy_batches::Int` - Number of epochs for which strategy networks are trained
 
 `buffer_size::Int` - Capacity of memory buffers (both strategy and value)
 
-`batch_size::Int` - Batch size for each gradient update step (both strategy and value)
+`batch_size::Int = ` - Batch size for each gradient update step (both strategy and value)
 
-`traversals::Int` - Number of MCCFR tree traversals to make for regret data collection between training steps
+`traversals::Int = 100` - Number of MCCFR tree traversals to make for regret data collection between training steps
 
 `value_optimizer::Flux.Optimise.AbstractOptimiser` - value network optimizer
 
@@ -69,16 +69,16 @@ end
 
 `strategy` - Single Flux.jl strategy network
 
-`on_gpu::Bool` - Option to push network training to GPU
+`on_gpu::Bool = false` - Option to push network training to GPU
 """
 function DeepCFRSolver(game::Game{H,K};
-    value_epochs::Int = 1,
-    strategy_epochs::Int = 1,
+    value_batches::Int = 100,
+    strategy_batches::Int = 1000,
     buffer_size::Int = 100*10^3,
-    batch_size::Int = 1_000,
+    batch_size::Int = 512,
     traversals::Int = 100,
-    value_optimizer = Flux.Optimiser(ClipValue(10.0), Descent()),
-    strategy_optimizer = ADAM(),
+    value_optimizer = Flux.Optimiser(ClipValue(10.0), ADAM(1e-3)),
+    strategy_optimizer = ADAM(1e-3),
     strategy = nothing,
     values::Union{Nothing, Tuple} = nothing,
     on_gpu::Bool = false
@@ -114,8 +114,8 @@ function DeepCFRSolver(game::Game{H,K};
         (AdvantageMemory{VK}(buffer_size), AdvantageMemory{VK}(buffer_size)),
         strategy_net,
         StrategyMemory{VK}(buffer_size),
-        value_epochs,
-        strategy_epochs,
+        value_batches,
+        strategy_batches,
         buffer_size,
         batch_size,
         traversals,

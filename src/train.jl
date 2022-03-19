@@ -33,86 +33,75 @@ reset advantage networks and empty memory buffers
 """
 function initialize!(sol::DeepCFRSolver)
     # TODO: Reinitialize with glorot somehow? Or some user-specified initializer?
-    # TODO: empty memory buffers
     initialize!.(sol.V)
     initialize!(sol.Π)
 end
 
 function train_value!(sol::DeepCFRSolver, p::Int)
-    initialize!.(sol.V)
+    initialize!(sol.V[p])
     opt = deepcopy(sol.advantage_opt)
-    for _ in 1:sol.value_epochs
-        train_net!(
-            sol.gpu,
-            sol.V[p],
-            sol.Mv[p].I,
-            sol.Mv[p].r,
-            sol.Mv[p].t,
-            sol.batch_size,
-            opt
-        )
-    end
+    train_net!(
+        sol.gpu,
+        sol.V[p],
+        sol.Mv[p].I,
+        sol.Mv[p].r,
+        sol.Mv[p].t,
+        sol.batch_size,
+        sol.value_batches,
+        opt
+    )
 end
 
-function train_policy!(sol::DeepCFRSolver, epochs::Int=sol.strategy_epochs, opt=sol.strategy_opt)
-    for _ in 1:epochs
-        train_net!(
-            sol.gpu,
-            sol.Π,
-            sol.Mπ.I,
-            sol.Mπ.σ,
-            sol.Mπ.t,
-            sol.batch_size,
-            opt
-        )
-    end
+function train_policy!(sol::DeepCFRSolver, batches::Int=sol.strategy_batches, opt=sol.strategy_opt)
+    train_net!(
+        sol.gpu,
+        sol.Π,
+        sol.Mπ.I,
+        sol.Mπ.σ,
+        sol.Mπ.t,
+        sol.batch_size,
+        sol.strategy_batches,
+        opt
+    )
 end
 
-function train_net!(::Val{true}, dest_net, x_data, y_data, w, batch_size, opt)
+function train_net!(
+    ::Val{true},
+    dest_net,
+    x_data,
+    y_data,
+    w,
+    batch_size,
+    n_batches,
+    opt)
+
     src_net = dest_net |> gpu
-    L = length(x_data)
-    iszero(L) && return
-    full_batches, leftover = divrem(L, batch_size)
-    total_batches = full_batches
-    !iszero(leftover) && (total_batches += 1)
 
     input_size = length(first(x_data))
     output_size = length(first(y_data))
-    perm = randperm(L)
-    perms = collect(Iterators.partition(perm, batch_size))
     p = params(src_net)
 
     _X = Matrix{Float32}(undef, input_size, batch_size)
     _Y = Matrix{Float32}(undef, output_size, batch_size)
+    sample_idxs = Vector{Int}(undef, batch_size)
+    idxs = 1:length(w)
+
     X = _X |> gpu
     Y = _Y |> gpu
     W = Vector{Float32}(undef, batch_size) |> gpu
 
-    for i in 1:full_batches
-        fillmat!(_X, @view x_data[perms[i]])
-        fillmat!(_Y, @view y_data[perms[i]])
+    for i in 1:n_batches
+        rand!(sample_idxs, idxs)
+        fillmat!(_X, x_data, sample_idxs)
+        fillmat!(_Y, y_data, sample_idxs)
         copyto!(X, _X)
         copyto!(Y, _Y)
-        copyto!(W, w[perms[i]])
+        copyto!(W, @view w[sample_idxs])
 
         Loss = NetLoss(src_net, X, Y, W)
 
         gs = gradient(Loss, p)
 
-        Flux.update!(opt, p::Flux.Params, gs)
-    end
-
-    if !iszero(leftover)
-        _X = Matrix{Float32}(undef, input_size, leftover)
-        _Y = Matrix{Float32}(undef, output_size, leftover)
-        fillmat!(_X, @view x_data[last(perms)])
-        fillmat!(_Y, @view y_data[last(perms)])
-        X = _X |> gpu
-        Y = _Y |> gpu
-        W = w[last(perms)] |> gpu
-
-        Loss = NetLoss(src_net, X, Y, W)
-        gs = gradient(Loss, p)
         Flux.update!(opt, p::Flux.Params, gs)
     end
 
@@ -120,42 +109,36 @@ function train_net!(::Val{true}, dest_net, x_data, y_data, w, batch_size, opt)
     nothing
 end
 
-function train_net!(::Val{false}, net, x_data, y_data, w, batch_size, opt)
-    L = length(x_data)
-    iszero(L) && return
-    full_batches, leftover = divrem(L, batch_size)
-    total_batches = full_batches
-    !iszero(leftover) && (total_batches += 1)
+function train_net!(
+    ::Val{false},
+    net,
+    x_data,
+    y_data,
+    w,
+    batch_size,
+    n_batches,
+    opt)
 
     input_size = length(first(x_data))
     output_size = length(first(y_data))
-    perm = randperm(L)
-    perms = collect(Iterators.partition(perm, batch_size))
 
     X = Matrix{Float32}(undef, input_size, batch_size)
     Y = Matrix{Float32}(undef, output_size, batch_size)
     W = Vector{Float32}(undef, batch_size)
+    sample_idxs = Vector{Int}(undef, batch_size)
+    idxs = 1:length(w)
+
     Loss = NetLoss(net, X, Y, W)
     p = params(net)
 
-    for i in 1:full_batches
-        fillmat!(X::Matrix{Float32}, @view x_data[perms[i]])
-        fillmat!(Y::Matrix{Float32}, @view y_data[perms[i]])
-        copyto!(W::Vector{Float32}, @view w[perms[i]])
+    for i in 1:n_batches
+        rand!(sample_idxs, idxs)
+        fillmat!(X::Matrix{Float32}, x_data, sample_idxs)
+        fillmat!(Y::Matrix{Float32}, y_data, sample_idxs)
+        copyto!(W::Vector{Float32}, @view w[sample_idxs])
+
         gs = gradient(Loss, p)
 
-        Flux.update!(opt, p::Flux.Params, gs)
-    end
-
-    if !iszero(leftover)
-        X = Matrix{Float32}(undef, input_size, leftover)
-        Y = Matrix{Float32}(undef, output_size, leftover)
-        W = w[last(perms)]
-        Loss = NetLoss(net, X, Y, W)
-
-        fillmat!(X::Matrix{Float32}, @view x_data[last(perms)])
-        fillmat!(Y::Matrix{Float32}, @view y_data[last(perms)])
-        gs = gradient(Loss, p)
         Flux.update!(opt, p::Flux.Params, gs)
     end
 
@@ -164,18 +147,11 @@ end
 
 train_net!(args...) = train_net!(Val(false), args...)
 
-"""
-inplace `reduce(hcat, vecvec)`
-"""
-function fillmat!(mat::T, vecvec) where T
-    inner_sz, outer_sz = size(mat)
-    @assert length(vecvec) == outer_sz "$(length(vecvec)) ≠ $outer_sz"
-    @assert length(first(vecvec)) == inner_sz "$(length(first(vecvec))) ≠ $inner_sz"
-    @inbounds for i in eachindex(vecvec)
-        dest = view(mat,:,i)
-        copyto!(dest, vecvec[i])
+function fillmat!(mat::AbstractMatrix, vecvec::AbstractVector, idxs)
+    @inbounds for i in 1:size(mat, 2)
+        mat[:,i] .= vecvec[idxs[i]]
     end
-    mat::T
+    return mat
 end
 
 """

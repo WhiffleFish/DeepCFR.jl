@@ -66,28 +66,52 @@ end
 weighted_sample(σ::AbstractVector) = weighted_sample(Random.GLOBAL_RNG, σ)
 
 function regret_match_strategy(sol::DeepCFRSolver, I::AbstractVector, p)
-    values = sol.V[p](I)
-    s = 0.0f0
+    return regret_match_strategy(sol.V[p](I))
+end
 
-    max_neg_idx = 0
-    max_neg = -Inf
-    for i in eachindex(values)
-        if values[i] > 0.0f0
-            s += values[i]
+function regret_match_strategy(r::AbstractVector)
+    s = 0.0f0
+    for i in eachindex(r)
+        if r[i] > 0.0f0
+            s += r[i]
         else
-            v = values[i]
-            if v > max_neg
-                max_neg_idx = i
-                max_neg = v
-            end
-            values[i] = 0.0f0
+            v = r[i]
+            r[i] = 0.0f0
         end
     end
 
     if s > 0.0f0
-        return values ./= s
+        return r ./= s
     else
-        values[max_neg_idx] = 1.0f0
-        return values
+        return fill!(r, inv(length(r)))
     end
 end
+
+
+# Using regret matching strategy from paper doesn't seem to work all that well
+#=
+function regret_match_strategy(r::AbstractVector)
+    s = 0.0f0
+    max_neg_idx = 0
+    max_neg = -Inf
+    for i in eachindex(r)
+        if r[i] > 0.0f0
+            s += r[i]
+        else
+            v = r[i]
+            if v > max_neg
+                max_neg_idx = i
+                max_neg = v
+            end
+            r[i] = 0.0f0
+        end
+    end
+
+    if s > 0.0f0
+        return r ./= s
+    else
+        r[max_neg_idx] = 1.0f0
+        return r
+    end
+end
+=#
