@@ -21,11 +21,9 @@ function CounterfactualRegret.train!(sol::DeepCFRSolver, N::Int; show_progress::
     train_policy!(sol)
 end
 
-"""
-https://discourse.julialang.org/t/reset-model-parameters-flux-jl/35021/2
-"""
+
 function initialize!(nn::Union{Dense, Chain}) # These networks don't have a common supertype?
-    Flux.loadparams!(nn, map(p -> p .= randn.(Float32), Flux.params(nn)))
+    randn!.(Flux.params(nn).params)
 end
 
 """
@@ -79,7 +77,7 @@ function train_net!(
 
     input_size = length(first(x_data))
     output_size = length(first(y_data))
-    p = params(src_net)
+    p = Flux.params(src_net)
 
     _X = Matrix{Float32}(undef, input_size, batch_size)
     _Y = Matrix{Float32}(undef, output_size, batch_size)
@@ -96,7 +94,7 @@ function train_net!(
         fillmat!(_Y, y_data, sample_idxs)
         copyto!(X, _X)
         copyto!(Y, _Y)
-        copyto!(W, @view w[sample_idxs])
+        copyto!(W, w[sample_idxs])
 
         Loss = NetLoss(src_net, X, Y, W)
 
@@ -105,7 +103,7 @@ function train_net!(
         Flux.update!(opt, p::Flux.Params, gs)
     end
 
-    Flux.loadparams!(dest_net, p)
+    Flux.loadmodel!(dest_net, src_net)
     nothing
 end
 
@@ -129,7 +127,7 @@ function train_net!(
     idxs = 1:length(w)
 
     Loss = NetLoss(net, X, Y, W)
-    p = params(net)
+    p = Flux.params(net)
 
     for i in 1:n_batches
         rand!(sample_idxs, idxs)

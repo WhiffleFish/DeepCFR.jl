@@ -60,3 +60,29 @@ end
     @test occursin("Strategy Optimizer", str)
     @test occursin("Game", str)
 end
+
+@testset "Regret Matching" begin
+    v1 = Float32.([1,2,3])
+    σ1 = DeepCFR.regret_match_strategy(v1)
+    @test all(σ1 .≈ Float32.([1/6,2/6,3/6]))
+
+    v2 = Float32.([-1,2,3])
+    σ2 = DeepCFR.regret_match_strategy(v2)
+    @test all(σ2 .≈ Float32.([0,2/5,3/5]))
+
+    v3 = Float32.([1,-2,3])
+    σ3 = DeepCFR.regret_match_strategy(v3)
+    @test all(σ3 .≈ Float32.([1/4,0,3/4]))
+
+    v4 = Float32.([1,2,-3])
+    σ4 = DeepCFR.regret_match_strategy(v4)
+    @test all(σ4 .≈ Float32.([1/3,2/3,0]))
+
+    # v5 = Float32.([-1,-2,-3])
+    # σ5 = DeepCFR.regret_match_strategy(v5)
+    # @test all(σ5 .≈ Float32.([1,0,0]))
+    #
+    # v6 = Float32.([-3,-2,-1])
+    # σ6 = DeepCFR.regret_match_strategy(v6)
+    # @test all(σ6 .≈ Float32.([0,0,1]))
+end
