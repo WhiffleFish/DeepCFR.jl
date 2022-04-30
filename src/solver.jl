@@ -1,3 +1,5 @@
+struct NullInfoState <: CounterfactualRegret.AbstractInfoState end
+abstract type AbstractDeepCFRSolver{G} <: CFR.AbstractCFRSolver{Nothing,G,NullInfoState} end
 mutable struct DeepCFRSolver{
         GPU,
         AN,
@@ -8,7 +10,7 @@ mutable struct DeepCFRSolver{
         G <: Game,
         ADV_OPT <: Flux.Optimise.AbstractOptimiser,
         STRAT_OPT <: Flux.Optimise.AbstractOptimiser
-    }
+    } <: AbstractDeepCFRSolver{G}
     gpu::Val{GPU}
 
     "Advantage networks"
@@ -76,9 +78,9 @@ function DeepCFRSolver(game::Game{H,K};
     strategy_batches::Int = 1000,
     buffer_size::Int = 100*10^3,
     batch_size::Int = 512,
-    traversals::Int = 100,
-    value_optimizer = Flux.Optimiser(ClipValue(10.0), ADAM(1e-3)),
-    strategy_optimizer = ADAM(1e-3),
+    traversals::Int = 50,
+    value_optimizer = ADAM(5e-3),
+    strategy_optimizer = ADAM(5e-3),
     strategy = nothing,
     values::Union{Nothing, Tuple} = nothing,
     on_gpu::Bool = false
@@ -87,13 +89,15 @@ function DeepCFRSolver(game::Game{H,K};
     VK = first(Base.return_types(vectorized, (typeof(game),K)))
     @assert VK <: AbstractVector "`vectorized(::Game{H,K}, ::K)` should return vector"
 
+    #= Leave to checks
     if promote_type(eltype(VK), Float32) !== Float32
         @warn "Float32 eltype preferred for vectorized information state key"
     end
+    =#
 
+    in_size, out_size = in_out_sizes(game)
     value_nets = if isnothing(values)
-        in_size, out_size = in_out_sizes(game)
-        value_net = Chain(Dense(in_size, 10, relu), Dense(10,out_size))
+        value_net = Chain(Dense(in_size, 16, relu), Dense(16,out_size))
         (value_net, deepcopy(value_net))
     else
         values
@@ -101,8 +105,8 @@ function DeepCFRSolver(game::Game{H,K};
 
     strategy_net = if isnothing(strategy)
         Chain(
-            Dense(in_size, 20, relu),
-            Dense(20, out_size, sigmoid),
+            Dense(in_size, 16, relu),
+            Dense(16, out_size, sigmoid),
             softmax)
     else
         strategy
@@ -126,9 +130,18 @@ function DeepCFRSolver(game::Game{H,K};
     )
 end
 
-strategy(sol::DeepCFRSolver, I::AbstractVector) = sol.Π(I)
+infokeytype(g::CounterfactualRegret.Game{H,K}) where {H,K} = K
 
-(sol::DeepCFRSolver)(I::AbstractVector) = strategy(sol, I)
+function CFR.strategy(sol::DeepCFRSolver, I)
+    game = sol.game
+    if typeof(I) === infokeytype(game)
+        return sol.Π(vectorized(game, I))
+    else
+        return sol.Π(I)
+    end
+end
+
+(sol::DeepCFRSolver)(I) = CFR.strategy(sol, I)
 
 
 function Base.show(io::IO, mime::MIME"text/plain", sol::DeepCFRSolver)
