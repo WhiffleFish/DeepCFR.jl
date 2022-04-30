@@ -8,13 +8,12 @@ function CounterfactualRegret.train!(sol::DeepCFRSolver, N::Int; show_progress::
     prog = Progress(N; enabled=show_progress)
     for t in 1:N
         cb()
-        for _ in 1:sol.traversals
-            for p in 1:2
+        for p in 1:2
+            for _ in 1:sol.traversals
                 traverse(sol, h0, p, sol.T)
             end
+            train_value!(sol, p)
         end
-        train_value!(sol, 1)
-        train_value!(sol, 2)
         next!(prog)
         sol.T += 1.0f0
     end
@@ -73,6 +72,7 @@ function train_net!(
     n_batches,
     opt)
 
+    isempty(x_data) && return nothing
     src_net = dest_net |> gpu
 
     input_size = length(first(x_data))
@@ -117,6 +117,7 @@ function train_net!(
     n_batches,
     opt)
 
+    isempty(x_data) && return nothing
     input_size = length(first(x_data))
     output_size = length(first(y_data))
 

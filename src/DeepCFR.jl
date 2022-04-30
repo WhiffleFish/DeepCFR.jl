@@ -1,6 +1,7 @@
 module DeepCFR
 
 using CounterfactualRegret
+const CFR = CounterfactualRegret
 using Random
 using ProgressMeter
 using Base.Iterators
