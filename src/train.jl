@@ -20,16 +20,23 @@ function CounterfactualRegret.train!(sol::DeepCFRSolver, N::Int; show_progress::
     train_policy!(sol)
 end
 
+initialize!(x, init=Flux.glorot_normal) = x
 
-function initialize!(nn::Union{Dense, Chain}) # These networks don't have a common supertype?
-    randn!.(Flux.params(nn).params)
+function initialize!(nn::Dense, init=Flux.glorot_normal)
+    nn.bias .= 0.0f0
+    nn.weight .= init(size(nn.weight)...)
+end
+
+function initialize!(nn::Chain, init=Flux.glorot_normal)
+    for layer in nn
+        initialize!(layer, init)
+    end
 end
 
 """
 reset advantage networks and empty memory buffers
 """
 function initialize!(sol::DeepCFRSolver)
-    # TODO: Reinitialize with glorot somehow? Or some user-specified initializer?
     initialize!.(sol.V)
     initialize!(sol.Π)
 end

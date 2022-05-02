@@ -4,7 +4,6 @@ using CounterfactualRegret
 const CFR = CounterfactualRegret
 using Random
 using ProgressMeter
-using Base.Iterators
 using Flux
 using FileIO
 
@@ -14,6 +13,7 @@ include("ESCFR.jl")
 include("train.jl")
 include("check.jl")
 include("callback.jl")
+include("fitting.jl")
 
 export DeepCFRSolver
 

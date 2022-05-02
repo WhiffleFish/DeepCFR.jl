@@ -8,6 +8,8 @@ using Flux
 
 include(joinpath(@__DIR__, "solver.jl"))
 
+include(joinpath(@__DIR__, "fitting.jl"))
+
 include(joinpath(@__DIR__, "memory.jl"))
 
 include(joinpath(@__DIR__, "check.jl"))

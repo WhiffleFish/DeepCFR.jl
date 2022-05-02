@@ -39,7 +39,7 @@ end
 on_gpu(::DeepCFRSolver{GPU}) where GPU = GPU
 infotype(::DeepCFRSolver{GPU,A,S,I}) where {GPU,A,S,I} = I
 regrettype(::DeepCFRSolver{GPU,A,S,I,R}) where {GPU,A,S,I,R} = R
-strattype(::DeepCFRSolver{GPU,A,S,I,R,ST}) where {GPU, A,S,I,R,ST} = ST
+strattype(::DeepCFRSolver{GPU,A,S,I,R,ST}) where {GPU,A,S,I,R,ST} = ST
 
 function in_out_sizes(game::Game)
     h0 = initialhist(game)
@@ -97,7 +97,7 @@ function DeepCFRSolver(game::Game{H,K};
 
     in_size, out_size = in_out_sizes(game)
     value_nets = if isnothing(values)
-        value_net = Chain(Dense(in_size, 16, relu), Dense(16,out_size))
+        value_net = Chain(Dense(in_size, 16, sigmoid), Dense(16,out_size))
         (value_net, deepcopy(value_net))
     else
         values
@@ -105,7 +105,8 @@ function DeepCFRSolver(game::Game{H,K};
 
     strategy_net = if isnothing(strategy)
         Chain(
-            Dense(in_size, 16, relu),
+            Dense(in_size, 16, sigmoid),
+            Dense(16, 16, sigmoid),
             Dense(16, out_size, sigmoid),
             softmax)
     else
@@ -129,8 +130,6 @@ function DeepCFRSolver(game::Game{H,K};
         1.0f0
     )
 end
-
-infokeytype(g::CounterfactualRegret.Game{H,K}) where {H,K} = K
 
 function CFR.strategy(sol::DeepCFRSolver, I)
     game = sol.game
