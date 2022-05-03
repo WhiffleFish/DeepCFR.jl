@@ -28,5 +28,5 @@
     cb = DeepCFR.ExploitabilityCallback(sol, 10)
     train!(sol, train_iter; cb = cb)
     @test length(cb.hist.y) == length(cb.hist.y) == 11
-    @test first(cb.hist.y) > last(cb.hist.y)
+    @test first(cb.hist.y) > last(cb.hist.y) > 0.0
 end

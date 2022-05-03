@@ -78,11 +78,11 @@ end
     σ4 = DeepCFR.regret_match_strategy(v4)
     @test all(σ4 .≈ Float32.([1/3,2/3,0]))
 
-    # v5 = Float32.([-1,-2,-3])
-    # σ5 = DeepCFR.regret_match_strategy(v5)
-    # @test all(σ5 .≈ Float32.([1,0,0]))
-    #
-    # v6 = Float32.([-3,-2,-1])
-    # σ6 = DeepCFR.regret_match_strategy(v6)
-    # @test all(σ6 .≈ Float32.([0,0,1]))
+    v5 = Float32.([-1,-2,-3])
+    σ5 = DeepCFR.regret_match_strategy(v5)
+    @test all(σ5 .≈ Float32.([1,0,0]))
+
+    v6 = Float32.([-3,-2,-1])
+    σ6 = DeepCFR.regret_match_strategy(v6)
+    @test all(σ6 .≈ Float32.([0,0,1]))
 end
