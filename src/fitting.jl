@@ -90,6 +90,7 @@ lower_limit_loss(Mπ::StrategyMemory) = lower_limit_loss(Mπ.I, Mπ.σ, Mπ.t)
 lower_limit_loss(Mv::AdvantageMemory) = lower_limit_loss(Mv.I, Mv.r, Mv.t)
 
 function optimality_distance(net, x_data, y_data, w)
+    isempty(x_data) && return 0.0
     input_size = length(first(x_data))
     output_size = length(first(y_data))
 

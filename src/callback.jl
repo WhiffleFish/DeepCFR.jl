@@ -55,3 +55,28 @@ function (cb::ExploitabilityCallback)()
     end
     cb.state += 1
 end
+
+
+struct FittingCallback{SOL<:AbstractDeepCFRSolver,N}
+    sol::SOL
+    verbose::Bool
+    io::IO
+    hist::NTuple{N,Vector{Float64}}
+end
+
+function FittingCallback(sol; verbose=true, io=stderr)
+    return FittingCallback(sol, verbose, io, Tuple(Float64[] for _ in eachindex(sol.V)))
+end
+
+function (cb::FittingCallback)()
+    sol = cb.sol
+    io = cb.io
+    cb.verbose && println()
+    for p in eachindex(sol.Mv)
+        d = optimality_distance(sol.V[p], sol.Mv[p])
+        push!(cb.hist[p], d)
+        if cb.verbose
+            println(io, p, ": ", round(d, sigdigits=3))
+        end
+    end
+end

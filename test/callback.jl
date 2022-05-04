@@ -29,4 +29,10 @@
     train!(sol, train_iter; cb = cb)
     @test length(cb.hist.y) == length(cb.hist.y) == 11
     @test first(cb.hist.y) > last(cb.hist.y) > 0.0
+
+    ## Fitting
+    sol = DeepCFRSolver(game)
+    cb = DeepCFR.FittingCallback(sol)
+    train!(sol, train_iter; cb=cb)
+    @test length(cb.hist[1]) == length(cb.hist[2]) == train_iter
 end
