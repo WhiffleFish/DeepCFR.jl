@@ -20,16 +20,9 @@ function CounterfactualRegret.train!(sol::DeepCFRSolver, N::Int; show_progress::
     train_policy!(sol)
 end
 
-initialize!(x, init=Flux.glorot_normal) = x
-
-function initialize!(nn::Dense, init=Flux.glorot_normal)
-    nn.bias .= 0.0f0
-    nn.weight .= init(size(nn.weight)...)
-end
-
-function initialize!(nn::Chain, init=Flux.glorot_normal)
-    for layer in nn
-        initialize!(layer, init)
+function initialize!(nn, init=Flux.glorot_normal)
+    for p in Flux.params(nn)
+        p .= init(size(p)...)
     end
 end
 

@@ -56,6 +56,7 @@ function (cb::ExploitabilityCallback)()
     cb.state += 1
 end
 
+@recipe f(cb::ExploitabilityCallback) = cb.hist
 
 struct FittingCallback{SOL<:AbstractDeepCFRSolver,N}
     sol::SOL
@@ -80,3 +81,5 @@ function (cb::FittingCallback)()
         end
     end
 end
+
+@recipe f(cb::FittingCallback) = hcat(cb.hist...)

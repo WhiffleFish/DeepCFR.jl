@@ -6,6 +6,7 @@ using Random
 using ProgressMeter
 using Flux
 using FileIO
+using RecipesBase
 
 include("memory.jl")
 include("solver.jl")

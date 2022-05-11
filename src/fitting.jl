@@ -103,7 +103,12 @@ function optimality_distance(net, x_data, y_data, w)
 
     l = wmse(net(X_tot), Y_tot, W_tot)
     l_min = lower_limit_loss(x_data, y_data, w)
-    return (l - l_min) / l_min
+
+    if iszero(l_min)
+        return l
+    else
+        return (l - l_min) / l_min
+    end
 end
 
 optimality_distance(net, Mπ::StrategyMemory)  = optimality_distance(net, Mπ.I, Mπ.σ, Mπ.t)
