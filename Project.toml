@@ -18,6 +18,7 @@ FileIO = "1"
 Flux = "0.13"
 JLD2 = "0.4"
 ProgressMeter = "1"
+RecipesBase = "1"
 julia = "1"
 
 [extras]
