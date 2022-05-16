@@ -11,6 +11,7 @@ using RecipesBase
 include("memory.jl")
 include("solver.jl")
 include("ESCFR.jl")
+include("OSCFR.jl")
 include("train.jl")
 include("check.jl")
 include("callback.jl")

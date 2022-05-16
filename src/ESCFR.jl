@@ -1,15 +1,18 @@
-function traverse(sol::DeepCFRSolver, h, p, t)
+struct ExternalSample end
+
+function (external_traverse::ExternalSample)(sol::DeepCFRSolver, h, p, t)
     game = sol.game
+    current_player = player(game, h)
 
     if isterminal(game, h)
-        return Float32(CounterfactualRegret.utility(game, p, h))
+        return Float32(CFR.utility(game, p, h))
 
-    elseif player(game, h) == 0
+    elseif iszero(current_player)
         a = chance_action(game, h)
         h′ = next_hist(game,h,a)
-        return traverse(sol, h′, p, t)
+        return external_traverse(sol, h′, p, t)
 
-    elseif player(game, h) == p
+    elseif current_player == p
         I = vectorized(game, infokey(game, h)) # info KEY here, not infostate
         A = actions(game, h)
         v_σ_Ia = Vector{Float32}(undef, length(A))
@@ -18,7 +21,7 @@ function traverse(sol::DeepCFRSolver, h, p, t)
         σ = regret_match_strategy(sol, I, p)
         for (i,a) in enumerate(A)
             h′ = next_hist(game, h, a)
-            v = traverse(sol, h′, p, t)
+            v = external_traverse(sol, h′, p, t)
             v_σ_Ia[i] = v
             v_σ += σ[i]*v
         end
@@ -31,11 +34,11 @@ function traverse(sol::DeepCFRSolver, h, p, t)
     else
         I = vectorized(game, infokey(game, h)) # info KEY here, not infostate
         A = actions(game, h)
-        σ = regret_match_strategy(sol, I, other_player(p))
+        σ = regret_match_strategy(sol, I, current_player)
         push!(sol.Mπ, I,t,σ)
         a = A[weighted_sample(σ)]
         h′ = next_hist(game, h, a)
-        return traverse(sol, h′, p, t)
+        return external_traverse(sol, h′, p, t)
     end
 end
 

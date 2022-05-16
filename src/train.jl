@@ -10,7 +10,7 @@ function CounterfactualRegret.train!(sol::DeepCFRSolver, N::Int; show_progress::
         cb()
         for p in 1:2
             for _ in 1:sol.traversals
-                traverse(sol, h0, p, sol.T)
+                sol.traverser(sol, h0, p, sol.T)
             end
             train_value!(sol, p)
         end

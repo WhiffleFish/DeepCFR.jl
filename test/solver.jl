@@ -34,6 +34,17 @@ end
     @test DeepCFR.regrettype(sol) == Vector{Float32}
     @test DeepCFR.strattype(sol) == Vector{Float32}
 
+    sol = DeepCFRSolver(game; traverser=DeepCFR.OutcomeSample())
+    train!(sol, 10)
+    I0 = infokey(game, initialhist(game))
+    σ = @inferred sol(DeepCFR.vectorized(game, I0))
+    @test σ isa Vector{<:AbstractFloat}
+    @test sum(σ) ≈ 1.0
+    @test DeepCFR.on_gpu(sol) == false
+    @test DeepCFR.infotype(sol) == SVector{1,Float32}
+    @test DeepCFR.regrettype(sol) == Vector{Float32}
+    @test DeepCFR.strattype(sol) == Vector{Float32}
+
     game = CFR.IIEMatrixGame()
     sol = DeepCFRSolver(game, on_gpu=true)
     train!(sol, 10)

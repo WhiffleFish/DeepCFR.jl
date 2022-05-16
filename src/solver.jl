@@ -8,6 +8,7 @@ mutable struct DeepCFRSolver{
         REGRET,
         STRAT,
         G <: Game,
+        T,
         ADV_OPT <: Flux.Optimise.AbstractOptimiser,
         STRAT_OPT <: Flux.Optimise.AbstractOptimiser
     } <: AbstractDeepCFRSolver{G}
@@ -30,6 +31,7 @@ mutable struct DeepCFRSolver{
     buffer_size::Int
     batch_size::Int
     traversals::Int
+    traverser::T
     advantage_opt::ADV_OPT
     strategy_opt::STRAT_OPT
     game::G
@@ -53,15 +55,17 @@ end
 """
 `game::CounterfactualRegret.Game`
 
-`value_batches::Int` - Number of epochs for which value/advantage/regret networks are trained
+`value_batches::Int = 100` - Number of epochs for which value/advantage/regret networks are trained
 
-`strategy_batches::Int` - Number of epochs for which strategy networks are trained
+`strategy_batches::Int = 1000` - Number of epochs for which strategy networks are trained
 
-`buffer_size::Int` - Capacity of memory buffers (both strategy and value)
+`buffer_size::Int = 100_000` - Capacity of memory buffers (both strategy and value)
 
-`batch_size::Int = ` - Batch size for each gradient update step (both strategy and value)
+`batch_size::Int = 512` - Batch size for each gradient update step (both strategy and value)
 
 `traversals::Int = 100` - Number of MCCFR tree traversals to make for regret data collection between training steps
+
+`traverser = ExternalSample()` - Type of MCCFR sampling used for tree traversal
 
 `value_optimizer::Flux.Optimise.AbstractOptimiser` - value network optimizer
 
@@ -78,6 +82,7 @@ function DeepCFRSolver(game::Game{H,K};
     strategy_batches::Int = 1000,
     buffer_size::Int = 100*10^3,
     batch_size::Int = 512,
+    traverser = ExternalSample(),
     traversals::Int = 50,
     value_optimizer = ADAM(5e-3),
     strategy_optimizer = ADAM(5e-3),
@@ -124,6 +129,7 @@ function DeepCFRSolver(game::Game{H,K};
         buffer_size,
         batch_size,
         traversals,
+        traverser,
         value_optimizer,
         strategy_optimizer,
         game,
