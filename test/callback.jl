@@ -1,6 +1,6 @@
 @testset "Callback" begin
     ## Throttle
-    game = CFR.IIEMatrixGame()
+    game = MatrixGame()
     sol = DeepCFRSolver(game)
     io = IOBuffer()
     f = () -> println(io, length(sol.Mπ))

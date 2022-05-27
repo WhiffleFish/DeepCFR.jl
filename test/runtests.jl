@@ -1,6 +1,7 @@
 using DeepCFR
 using Test
 using CounterfactualRegret
+using CounterfactualRegret.Games
 const CFR = CounterfactualRegret
 using StaticArrays
 using JLD2

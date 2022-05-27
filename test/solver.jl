@@ -1,6 +1,6 @@
-DeepCFR.vectorized(::CFR.IIEMatrixGame, I) = SA[Float32(I)]
+DeepCFR.vectorized(::MatrixGame, I) = SA[Float32(I)]
 
-function DeepCFR.vectorized(game::CFR.Kuhn, I)
+function DeepCFR.vectorized(game::Kuhn, I)
     p, pc, hist = I
     h = convert(SVector{3,Float32}, hist)
     SA[Float32(p), Float32(pc), h...]
@@ -9,7 +9,7 @@ end
 @testset "Solver" begin
 
     ## Basic operation + reasonable outputs
-    game = CFR.Kuhn()
+    game = Kuhn()
     sol = DeepCFRSolver(game; buffer_size=50, traversals=10)
     train!(sol, 100)
     I0 = infokey(game, initialhist(game))
@@ -22,7 +22,7 @@ end
     @test DeepCFR.regrettype(sol) == Vector{Float32}
     @test DeepCFR.strattype(sol) == Vector{Float32}
 
-    game = CFR.IIEMatrixGame()
+    game = MatrixGame()
     sol = DeepCFRSolver(game)
     train!(sol, 10)
     I0 = infokey(game, initialhist(game))
@@ -45,7 +45,7 @@ end
     @test DeepCFR.regrettype(sol) == Vector{Float32}
     @test DeepCFR.strattype(sol) == Vector{Float32}
 
-    game = CFR.IIEMatrixGame()
+    game = MatrixGame()
     sol = DeepCFRSolver(game, on_gpu=true)
     train!(sol, 10)
     I0 = infokey(game, initialhist(game))

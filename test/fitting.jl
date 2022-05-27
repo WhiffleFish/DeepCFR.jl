@@ -1,5 +1,5 @@
 @testset "Fitting" begin
-    game = CFR.Kuhn()
+    game = Kuhn()
 
     sol = DeepCFRSolver(game)
     train!(sol, 100)

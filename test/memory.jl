@@ -1,5 +1,5 @@
 @testset "Memory" begin
-    game = CFR.Kuhn()
+    game = Kuhn()
     sol = DeepCFRSolver(game; buffer_size=50, traversals=10)
     train!(sol, 100)
 

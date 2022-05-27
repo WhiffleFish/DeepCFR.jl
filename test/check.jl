@@ -1,5 +1,5 @@
 @testset "Check" begin
-    game = CFR.IIEMatrixGame()
+    game = MatrixGame()
 
     #=
     Wrong input size:
