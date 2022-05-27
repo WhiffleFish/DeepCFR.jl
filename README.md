@@ -6,19 +6,20 @@
 
 ```julia
 using CounterfactualRegret
+using CounterfactualRegret.Games
 import CounterfactualRegret as CFR
 using StaticArrays
 using DeepCFR
 
 # Get Rock-Paper-Scissors as default CounterfactualRegret.jl matrix game
-RPS = CFR.IIEMatrixGame()
+RPS = MatrixGame()
 
 #=
 Information state type of matrix game is `Int`, 
 so extend `vectorized` method to convert to vector 
 s.t. it's able to be passed through a Flux.jl network
 =#
-DeepCFR.vectorized(::CFR.IIEMatrixGame, I) = SA[Float32(I)]
+DeepCFR.vectorized(::MatrixGame, I) = SA[Float32(I)]
 
 
 sol = DeepCFRSolver(
